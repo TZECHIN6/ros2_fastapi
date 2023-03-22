@@ -46,9 +46,10 @@ class WebServiceNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     web_service_node = WebServiceNode()
+    
+    # Multi-threading is needed for both ROS2 node and uvicorn
     executor = rclpy.executors.MultiThreadedExecutor()
     executor.add_node(web_service_node)
-    #rclpy.spin(web_service_node)
     spin_thread = threading.Thread(target=executor.spin, daemon=True)
     spin_thread.start()
     
