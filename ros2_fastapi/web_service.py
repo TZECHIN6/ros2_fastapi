@@ -20,21 +20,13 @@ class Pose(BaseModel):
     z: float
     w: float
 
-# @app.post('/pub_robot_status')
-# async def publish_robot_status(pose: Pose):
-#     print('Pose: ', pose)
-#     return {'message': 'Received robot status'}
-
-
 class WebServiceNode(Node):
 
     def __init__(self):
         super().__init__('web_service_node')
-        #self.subscriptions = self.create_subscription()
         self.client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
         while not self.client.wait_for_server(timeout_sec=1.0):
             self.get_logger().info('Waiting for Nav2 service...')
-        self.latest_odom = None
         self.subscription = self.create_subscription(Odometry, 'odom', self.odometry_callback, 10)
         self.subscription
         timer_period = 5.0  # seconds
@@ -67,7 +59,7 @@ class WebServiceNode(Node):
                 self.get_logger().error('Failed to send goal')
                 return {'message': 'Failed to send goal'}
 
-        @app.post('/pub_robot_status', response_model=Pose)
+        @app.post('/pub_robot_status')
         async def post_robot_status(pose: Pose):
             print('Pose: ', pose)
             return {'message': 'Robot status received'}
@@ -82,11 +74,14 @@ class WebServiceNode(Node):
     def pub_robot_status(self):
         if self.latest_odom is not None:
             odom = Pose(x=self.latest_odom[0], y=self.latest_odom[1], z=self.latest_odom[2], w=self.latest_odom[3])
-            odom_json = json.dumps(odom.dict(), ensure_ascii=False).replace('"', "'")
-            print('odom_json: ', odom_json)
-            #current_pose = {'x': 1.0, 'y': 2.0, 'z': 0.0, 'w':1.0}
-            response = requests.post('http://localhost:8000/pub_robot_status', json=odom_json)
-            #print('Response:', response)
+            odom_dict = odom.dict()
+            response = requests.post('http://localhost:8000/pub_robot_status', json=odom_dict)
+
+            # odom = Pose(x=self.latest_odom[0], y=self.latest_odom[1], z=self.latest_odom[2], w=self.latest_odom[3])
+            # odom_json = json.dumps(odom.dict(), allow_nan=False, ensure_ascii=False)
+            # headers = {'Content-Type': 'application/json'}
+            # response = requests.post('http://localhost:8000/pub_robot_status', data=odom_json, headers=headers)
+            
             if response.status_code != 200:
                 self.get_logger().error('Failed to publish to FastAPI endpoint: %s', response.text)
 
@@ -108,38 +103,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-
-
-    # def get_goal_pose(self):
-    #     url = "http://localhost:8000/get_goal_pose"
-    #     response = requests.get(url)
-    #     goal_pose = response.json()
-    #     pose = PoseStamped()
-    #     pose.header.frame_id = 'map'
-    #     pose.pose.position.x = goal_pose['x']
-    #     pose.pose.position.y = goal_pose['y']
-    #     pose.pose.position.z = goal_pose['z']
-    #     pose.pose.orientation.x = 0.0
-    #     pose.pose.orientation.y = 0.0
-    #     pose.pose.orientation.z = 0.0
-    #     pose.pose.orientation.w = goal_pose['w']
-    #     self.get_logger().info('Received goal pose: ')
-    #     return pose
-
-    # def navigate_to_pose(self):
-    #     goal_pose = self.get_goal_pose()
-    #     goal = NavigateToPose.Goal()
-    #     goal.pose = goal_pose
-    #     future = self.client.send_goal_async(goal)
-    #     rclpy.spin_until_future_complete(self, future)
-    #     result = future.result()
-    #     print(result)
-
-    # def publish_to_fastapi(self):
-    #     # Get the current pose
-    #     current_pose = {'x': 1.0, 'y': 2.0, 'z': 0.0, 'w':1.0}
-    #     url = "http://localhost:8000/pub_robot_status"
-    #     response = requests.post(url, json=current_pose)
-    #     if response.status_code != 200:
-    #         self.get_logger().error('Failed to publish to FastAPI endpoint: %s', response.text)
 
